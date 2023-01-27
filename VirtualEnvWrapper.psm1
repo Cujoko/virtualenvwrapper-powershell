@@ -251,6 +251,10 @@ function Workon {
 
     $Env:OLD_PYTHON_PATH = $Env:PYTHON_PATH
     $Env:VIRTUAL_ENV = "$new_pyenv"
+
+    if ((Test-path "$new_pyenv\.project") -eq $true) {
+        Get-Content -Encoding 866 "$new_pyenv\.project" | Set-Location
+    }
 }
 
 #
