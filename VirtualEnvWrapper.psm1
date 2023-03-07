@@ -62,35 +62,6 @@ function Write-FormatedSuccess($err) {
 }
 
 #
-# Retrieve the python version with the path the python exe regarding the version.
-# Python < 3.3 is for this function a Python 2 because the module venv comes with python 3.3
-#
-# Return the major version of python
-#
-function Get-PythonVersion($Python) {
-    if (!(Test-Path $Python)) {
-        Write-FormatedError "$Python doesn't exist"
-        return
-    }
-
-    $python_version = Invoke-Expression "& '$Python' --version 2>&1"
-    if (!$Python -and !$python_version) {
-        Write-Host "I don't find any Python version into your path" -ForegroundColor Red
-        return
-    }
-
-    $is_version_2 = ($python_version -match "^Python\s2") -or ($python_version -match "^Python\s3.3")
-    $is_version_3 = $python_version -match "^Python\s3" -and !$is_version_2
-
-    if (!$is_version_2 -and !$is_version_3) {
-        Write-FormatedError "Unknown Python Version expected Python 2 or Python 3 got $python_version"
-        return
-    }
-
-    return $(if ($is_version_2) {"2"} else {"3"})
-}
-
-#
 # Common command to create the Python Virtual Environement.
 # $Command contains either the Py2 or Py3 command
 #
@@ -100,96 +71,23 @@ function Invoke-CreatePyEnv($Command, $Name) {
 
     Invoke-Expression "$Command '$NewEnv'"
 
-    $VEnvScritpsPath = Join-Path $NewEnv "Scripts"
-    $ActivatepPath = Join-Path $VEnvScritpsPath "activate.ps1"
-    . $ActivatepPath
+    $VenvScriptsPath = Join-Path $NewEnv "Scripts"
+    $ActivatePath = Join-Path $VenvScriptsPath "activate.ps1"
+    . $ActivatePath
 
     Write-FormatedSuccess "$Name virtual environment was created and your're in."
 }
 
 #
-# Create Python Environment using the VirtualEnv.exe command
-#
-function New-Python2Env($Python, $Name)  {
-    $Command = (Join-Path (Join-Path (Split-Path $Python -Parent) "Scripts") "virtualenv.exe")
-
-    if ((Test-Path $Command) -eq $false) {
-        Write-FormatedError "You must install virtualenv program to create the Python virtual environment '$Name'"
-        return
-    }
-
-    Invoke-CreatePyEnv $Command $Name
-}
-
-#
-# Create Python Environment using the venv module
-#
-function New-Python3Env($Python, $Name) {
-    if (!$Python) {
-        $PythonExe = Find-Python
-    } else {
-        $PythonExe = Join-Path (Split-Path $Python -Parent) "python.exe"
-    }
-
-    $Command = "& '$PythonExe' -m venv"
-
-    Invoke-CreatePyEnv $Command $Name
-}
-
-#
-# Find python.exe in the path. If $Python is given, try with the given path
-#
-function Find-Python ($Python) {
-    # The path contains the python executable
-    if ($Python.EndsWith('python.exe'))
-    {
-        if (!(Test-Path $Python))
-        {
-            return $false
-        }
-
-        return $Python
-    }
-
-    # No python given, get the default one
-    if (!$Python) {
-        return Get-Command "python.exe" | Select-Object -ExpandProperty Source
-    }
-
-    # The python path doesn't exist
-    if (!(Test-Path $Python)) {
-        return $false
-    }
-
-    # The pas is a directory path not a executable path
-    $PythonExe = Join-Path $Python "python.exe"
-    if (!(Test-Path $PythonExe)) {
-        return $false
-    }
-
-    return $PythonExe
-}
-
-#
 # Create the Python Environment regardless the Python version
 #
-function New-PythonEnv($Python, $Name, $Packages, $Append) {
-    $version = Get-PythonVersion $Python
-
+function New-PythonEnv($Name, $Append) {
     BackupPath
     if ($Append) {
         $Env:PYTHONPATH = "$Append;$($Env:PYTHONPATH)"
     }
 
-    if ($Version -eq "2") {
-        New-Python2Env -Python $Python -Name $Name
-    } elseif ($Version -eq "3") {
-        New-Python3Env -Python $Python -Name $Name
-    } else {
-        Write-FormatedError "This is the debug voice. I expected a Python version, got $Version"
-        RestorePath
-
-    }
+    Invoke-CreatePyEnv "virtualenv.exe" $Name
 }
 
 function BackupPath {
@@ -238,7 +136,7 @@ function Workon {
     }
 
     if (Get-IsInPythonVenv -eq $true) {
-        deactivate        
+        deactivate
     }
 
     $activate_path = "$new_pyenv\Scripts\Activate.ps1"
@@ -270,9 +168,6 @@ function New-VirtualEnv()
         [alias("r")]
         [string]$Requirement,
 
-        [Parameter(HelpMessage="The Python directory where the python.exe lives")]
-        [string]$Python,
-
         [Parameter(HelpMessage="The package to install. Repeat the parameter for more than one")]
         [alias("i")]
         [string[]]$Packages,
@@ -302,13 +197,7 @@ function New-VirtualEnv()
         return
     }
 
-    $PythonRealPath = Find-Python $Python
-    if (!$PythonRealPath) {
-        Write-FormatedError "The path to access to python doesn't exist. Python directory = $Python"
-        return
-    }
-
-    New-PythonEnv -Python $PythonRealPath -Name $Name
+    New-PythonEnv -Name $Name -Append $Append
 
     foreach($Package in $Packages)  {
          Invoke-Expression "$WORKON_HOME\$Name\Scripts\pip.exe install $Package"
@@ -330,7 +219,6 @@ function New-VirtualEnv()
         Set-Content -Encoding 866 "$NewEnv\.project" (Resolve-Path $Associate)
     }
 }
-
 
 #
 # Check if there is an environment named $Name
@@ -382,7 +270,6 @@ function Get-VirtualEnvs {
             Write-Host "`t$item"
         }
     }
-
 
     Write-Host
 }
