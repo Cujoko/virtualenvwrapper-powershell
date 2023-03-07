@@ -323,6 +323,12 @@ function New-VirtualEnv()
 
         Invoke-Expression "$WORKON_HOME\$Name\Scripts\pip.exe install -r $Requirement"
     }
+
+    if ($Associate) {
+        $NewEnv = Join-Path $WORKON_HOME $Name
+
+        Set-Content -Encoding 866 "$NewEnv\.project" (Resolve-Path $Associate)
+    }
 }
 
 
