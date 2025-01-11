@@ -151,7 +151,7 @@ function Workon {
     $Env:VIRTUAL_ENV = "$new_pyenv"
 
     if ((Test-path "$new_pyenv\.project") -eq $true) {
-        Get-Content -Encoding 866 "$new_pyenv\.project" | Set-Location
+        Get-Content -Encoding UTF8 "$new_pyenv\.project" | Set-Location
     }
 }
 
@@ -216,7 +216,7 @@ function New-VirtualEnv()
     if ($Associate) {
         $NewEnv = Join-Path $WORKON_HOME $Name
 
-        Set-Content -Encoding 866 "$NewEnv\.project" (Resolve-Path $Associate)
+        Set-Content -Encoding UTF8 "$NewEnv\.project" (Resolve-Path $Associate)
     }
 }
 
